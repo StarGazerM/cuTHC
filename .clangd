@@ -12,7 +12,7 @@ If:
 CompileFlags:
   Compiler: /usr/bin/g++
   Add:
-    - "-I/home/stargazermiao/workspace/ddisasm-ascent/cuthc/include"
+    - "-I/home/stargazermiao/workspace/cuTHC/include"
 
 ---
 
@@ -22,12 +22,12 @@ If:
 CompileFlags: 
   Compiler: /usr/local/cuda/bin/nvcc
   Add:
-    - "-I/home/stargazermiao/workspace/ddisasm-ascent/cuthc/include"
-    - "-I/home/stargazermiao/workspace/cuthc/build/_deps/cuco-src/include"
-    - "-I/home/stargazermiao/workspace/cuthc/build/_deps/rmm-src/include"
-    - "-I/home/stargazermiao/workspace/cuthc/build/_deps/fmt-src/include"
-    - "-I/home/stargazermiao/workspace/cuthc/build/_deps/nvtx3-src/c/include"
-    - "-I/home/stargazermiao/workspace/cuthc/build/_deps/spdlog-src/include"
+    - "-I/home/stargazermiao/workspace/cuTHC/include"
+    - "-I/home/stargazermiao/workspace/cuTHC/build/_deps/cuco-src/include"
+    - "-I/home/stargazermiao/workspace/cuTHC/build/_deps/rmm-src/include"
+    - "-I/home/stargazermiao/workspace/cuTHC/build/_deps/fmt-src/include"
+    - "-I/home/stargazermiao/workspace/cuTHC/build/_deps/nvtx3-src/c/include"
+    - "-I/home/stargazermiao/workspace/cuTHC/build/_deps/spdlog-src/include"
     - "-D__CUDACC_VER_MAJOR__=12"
     - "-D__CUDACC_VER_MINOR__=0"
 

@@ -139,4 +139,22 @@ rapids_cpm_rmm()
 set(cuthc_src "${PROJECT_SOURCE_DIR}/src")
 set(cuthc_include "${PROJECT_SOURCE_DIR}/include")
 
+# compile the source files into a shared library
+
+file(GLOB_RECURSE cuthc_src_files "${cuthc_src}/*.cu" "${cuthc_src}/*.cpp")
+file(GLOB_RECURSE cuthc_include_files "${cuthc_include}/*.h" "${cuthc_include}/*.hpp")
+
+add_library(cuthc SHARED ${cuthc_src_files} ${cuthc_include_files})
+target_include_directories(cuthc PUBLIC ${cuthc_include})
+target_link_libraries(cuthc cuco::cuco rmm::rmm)
+# turn on pic and -extended-lambda
+set_target_properties(cuthc PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
+set_target_properties(cuthc PROPERTIES POSITION_INDEPENDENT_CODE ON)
+
+target_compile_options(cuthc PUBLIC $<$<COMPILE_LANGUAGE:CUDA>:
+    -lineinfo
+    --expt-relaxed-constexpr
+    --default-stream per-thread
+    --extended-lambda>)
+
 

@@ -1,0 +1,8 @@
+[package]
+name = "cuthc"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+cudarc = { version = "0.13.4", features = ["cuda-12040"]}
+
