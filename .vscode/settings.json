@@ -1,0 +1,15 @@
+{
+    "C_Cpp.intelliSenseEngine": "default",
+    "files.associations": {
+        "*.py ": "python",
+        "deque": "cpp",
+        "hash_map": "cpp",
+        "hash_set": "cpp",
+        "forward_list": "cpp",
+        "list": "cpp",
+        "string": "cpp",
+        "valarray": "cpp",
+        "vector": "cpp",
+        "*.tcc": "cpp"
+    },
+}

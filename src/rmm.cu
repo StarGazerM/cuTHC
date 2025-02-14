@@ -3,6 +3,7 @@
 #include <rmm/mr/device/cuda_memory_resource.hpp>
 #include <rmm/mr/device/pool_memory_resource.hpp>
 #include <thrust/host_vector.h>
+#include <rmm/exec_policy.hpp>
 #include <rmm/device_vector.hpp>
 
 #include "cuthc.h"
@@ -84,3 +85,37 @@ int cuthc_get_int_device_vec(void* ptr, size_t index) {
     return (*device_vec)[index];
 }
 
+
+void* cuthc_mk_bool_device_vec(size_t size) {
+    auto device_vec = new rmm::device_vector<bool>(size);
+    return device_vec;
+}
+void cuthc_free_bool_device_vec(void* ptr) {
+    auto device_vec = static_cast<rmm::device_vector<bool>*>(ptr);
+    delete device_vec;
+}
+void cuthc_resize_bool_device_vec(void* ptr, size_t size) {
+    auto device_vec = static_cast<rmm::device_vector<bool>*>(ptr);
+    device_vec->resize(size);
+}
+bool* cuthc_raw_ptr_bool_device_vec(void* ptr) {
+    auto device_vec = static_cast<rmm::device_vector<bool>*>(ptr);
+    return device_vec->data().get();
+}
+size_t cuthc_size_bool_device_vec(void* ptr) {
+    auto device_vec = static_cast<rmm::device_vector<bool>*>(ptr);
+    return device_vec->size();
+}
+void cuthc_set_bool_device_vec(void* ptr, size_t pos, bool value) {
+    auto device_vec = static_cast<rmm::device_vector<bool>*>(ptr);
+    (*device_vec)[pos] = value;
+}
+bool cuthc_get_bool_device_vec(void* ptr, size_t pos) {
+    auto device_vec = static_cast<rmm::device_vector<bool>*>(ptr);
+    return (*device_vec)[pos];
+}
+
+void cuthc_set_bool_device_vec_all(void* ptr, bool value) {
+    auto device_vec = static_cast<rmm::device_vector<bool>*>(ptr);
+    thrust::fill(rmm::exec_policy(), device_vec->begin(), device_vec->end(), value);
+}

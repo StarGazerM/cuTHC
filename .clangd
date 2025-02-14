@@ -40,6 +40,7 @@ CompileFlags:
     # report all errors
     - "-ferror-limit=0"
     - "--cuda-gpu-arch=sm_70"
+    - "-std=c++20"
   Remove:
     # strip CUDA fatbin args
     - "-Xfatbin*"
@@ -57,6 +58,7 @@ CompileFlags:
     - "--expt-relaxed-constexpr"
     - "-forward-unknown-to-host-compiler"
     - "-Werror=cross-execution-space-call"
+    - "-Xcompiler=-fPIC"
 Hover:
   ShowAKA: No
 Diagnostics:

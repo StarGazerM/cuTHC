@@ -137,6 +137,7 @@ endfunction()
 rapids_cpm_rmm()
 
 set(cuthc_src "${PROJECT_SOURCE_DIR}/src")
+set(cuthc_test "${PROJECT_SOURCE_DIR}/test")
 set(cuthc_include "${PROJECT_SOURCE_DIR}/include")
 
 # compile the source files into a shared library
@@ -144,7 +145,7 @@ set(cuthc_include "${PROJECT_SOURCE_DIR}/include")
 file(GLOB_RECURSE cuthc_src_files "${cuthc_src}/*.cu" "${cuthc_src}/*.cpp")
 file(GLOB_RECURSE cuthc_include_files "${cuthc_include}/*.h" "${cuthc_include}/*.hpp")
 
-add_library(cuthc SHARED ${cuthc_src_files} ${cuthc_include_files})
+add_library(cuthc SHARED STATIC ${cuthc_src_files} ${cuthc_include_files})
 target_include_directories(cuthc PUBLIC ${cuthc_include})
 target_link_libraries(cuthc cuco::cuco rmm::rmm)
 # turn on pic and -extended-lambda
@@ -156,5 +157,14 @@ target_compile_options(cuthc PUBLIC $<$<COMPILE_LANGUAGE:CUDA>:
     --expt-relaxed-constexpr
     --default-stream per-thread
     --extended-lambda>)
+target_compile_features(cuthc PUBLIC cxx_std_20)
 
-
+add_executable(cuthc_test ${cuthc_test}/test.cu)
+target_link_libraries(cuthc_test cuco::cuco rmm::rmm)
+set_target_properties(cuthc_test PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
+target_compile_options(cuthc_test PUBLIC $<$<COMPILE_LANGUAGE:CUDA>:
+    -lineinfo
+    --expt-relaxed-constexpr
+    --default-stream per-thread
+    --extended-lambda>)
+target_compile_features(cuthc_test PUBLIC cxx_std_20)
