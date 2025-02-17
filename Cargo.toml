@@ -1,0 +1,2 @@
+[workspace]
+members = ["rust/cuthc", "rust/macro_util"]

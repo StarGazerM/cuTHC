@@ -16,6 +16,7 @@
 #include <thrust/unique.h>
 #include <thrust/zip_function.h>
 #include <thrust/remove.h>
+#include <thrust/merge.h>
 
 #include "cuthc.h"
 
@@ -90,6 +91,30 @@ auto zip_iterator(NDVector<N> &ndvec)
       {
         return thrust::make_tuple(ndvec.vecs[Is].begin()...);
       }(std::make_index_sequence<N>{}));
+}
+
+template <int N>
+void merge_ndvector(NDVector<N> &ndvec, NDVector<N> &ndvec2, NDVector<N> &result)
+{
+  result.resize(ndvec.size + ndvec2.size);
+  auto z_begin = zip_iterator(ndvec);
+  auto z_end = z_begin + ndvec.size;
+  auto z2_begin = zip_iterator(ndvec2);
+  auto z2_end = z2_begin + ndvec2.size;
+  auto result_begin = zip_iterator(result);
+  thrust::merge(rmm::exec_policy(), z_begin, z_end, z2_begin, z2_end, result_begin);
+
+  result.size = ndvec.size + ndvec2.size;
+}
+
+template <int N>
+void clear_ndvector(NDVector<N> &ndvec)
+{
+  for (int i = 0; i < N; i++)
+  {
+    ndvec.vecs[i].clear();
+  }
+  ndvec.size = 0;
 }
 
 // sort a N-dimensional vector based lexicographically
@@ -217,7 +242,6 @@ void search_vector(rmm::device_vector<int> &vec,
   }
 
 #define DECLARE_CUTHC_UNIQUE_NDVECTOR(N)        \
-  \ 
   void cuthc_unique_ndvector_##N(void *ptr)     \
   {                                             \
     auto vec = static_cast<NDVector<N> *>(ptr); \
@@ -225,12 +249,27 @@ void search_vector(rmm::device_vector<int> &vec,
   }
 
 #define DECLARE_REMOVE_NDVECTOR(N)                                       \
-  \ 
   void cuthc_remove_ndvector_##N(void *ptr, void *stencil)               \
   {                                                                      \
     auto vec = static_cast<NDVector<N> *>(ptr);                          \
     auto stencil_vec = static_cast<rmm::device_vector<bool> *>(stencil); \
     remove_ndvector_by_stencil(*vec, *stencil_vec);                      \
+  }
+
+#define DECLARE_MERGE_NDVECTOR(N)                                       \
+  void cuthc_merge_ndvector_##N(void *ptr, void *ptr2, void *result)    \
+  {                                                                     \
+    auto vec = static_cast<NDVector<N> *>(ptr);                         \
+    auto vec2 = static_cast<NDVector<N> *>(ptr2);                       \
+    auto result_vec = static_cast<NDVector<N> *>(result);               \
+    merge_ndvector(*vec, *vec2, *result_vec);                          \
+  }
+
+#define DECLARE_CLEAR_NDVECTOR(N)        \
+  void cuthc_clear_ndvector_##N(void *ptr) \
+  {                                       \
+    auto vec = static_cast<NDVector<N> *>(ptr); \
+    clear_ndvector(*vec);                  \
   }
 
 #define CUTHC_MK_NDVECTOR(DIM)        \
@@ -242,8 +281,10 @@ void search_vector(rmm::device_vector<int> &vec,
   DECLARE_CUTHC_SORT_NDVECTOR(DIM)    \
   DECLARE_CUTHC_SEARCH_NDVECTOR(DIM)  \
   DECLARE_CUTHC_UNIQUE_NDVECTOR(DIM)  \                    
-  DECLARE_REMOVE_NDVECTOR(DIM)
-
+  DECLARE_REMOVE_NDVECTOR(DIM)       \
+  DECLARE_MERGE_NDVECTOR(DIM)        \
+  DECLARE_CLEAR_NDVECTOR(DIM)
+  
 CUTHC_MK_NDVECTOR(1)
 CUTHC_MK_NDVECTOR(2)
 CUTHC_MK_NDVECTOR(3)

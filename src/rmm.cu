@@ -85,7 +85,6 @@ int cuthc_get_int_device_vec(void* ptr, size_t index) {
     return (*device_vec)[index];
 }
 
-
 void* cuthc_mk_bool_device_vec(size_t size) {
     auto device_vec = new rmm::device_vector<bool>(size);
     return device_vec;

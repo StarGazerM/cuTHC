@@ -12,7 +12,8 @@
     void cuthc_search_ndvector_##N(void* ptr, void *input, void* result); \
     void cuthc_remove_ndvector_##N(void* ptr, void* stencil, void* result); \
     void cuthc_unique_ndvector_##N(void* ptr); \
-    
+    void cuthc_merge_ndvector_##N(void* ptr1, void* ptr2, void* result); \
+    void cuthc_clear_ndvector_##N(void* ptr);
 
 extern "C" {
 
