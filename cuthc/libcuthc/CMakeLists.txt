@@ -145,7 +145,7 @@ set(cuthc_include "${PROJECT_SOURCE_DIR}/include")
 file(GLOB_RECURSE cuthc_src_files "${cuthc_src}/*.cu" "${cuthc_src}/*.cpp")
 file(GLOB_RECURSE cuthc_include_files "${cuthc_include}/*.h" "${cuthc_include}/*.hpp")
 
-add_library(cuthc SHARED STATIC ${cuthc_src_files} ${cuthc_include_files})
+add_library(cuthc SHARED ${cuthc_src_files} ${cuthc_include_files})
 target_include_directories(cuthc PUBLIC ${cuthc_include})
 target_link_libraries(cuthc cuco::cuco rmm::rmm)
 # turn on pic and -extended-lambda

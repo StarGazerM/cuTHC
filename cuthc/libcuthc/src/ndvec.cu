@@ -17,6 +17,7 @@
 #include <thrust/zip_function.h>
 #include <thrust/remove.h>
 #include <thrust/merge.h>
+#include <thrust/gather.h>
 
 #include "cuthc.h"
 
@@ -66,14 +67,20 @@ public:
     }
     size = new_size;
   }
+
+  size_t get_size()
+  {
+    return vecs[0].size();
+  }
 };
 
 template <int N>
-void init_ndvector_indices(NDVector<N> &ndvec)
+void *init_ndvector_indices(NDVector<N> &ndvec)
 {
   ndvec.indices.resize(ndvec.size);
   thrust::sequence(rmm::exec_policy(), ndvec.indices.begin(),
                    ndvec.indices.end());
+  return &ndvec.indices;
 }
 
 void sort_vector(rmm::device_vector<int> &vec)
@@ -91,6 +98,19 @@ auto zip_iterator(NDVector<N> &ndvec)
       {
         return thrust::make_tuple(ndvec.vecs[Is].begin()...);
       }(std::make_index_sequence<N>{}));
+}
+
+// gather a NDVector from another NDVector based on indices
+template <int N>
+void gather_ndvector(NDVector<N> &ndvec, rmm::device_vector<int> &indices,
+                     NDVector<N> &result)
+{
+  result.resize(ndvec.get_size());
+  auto z_begin = zip_iterator(ndvec);
+  auto z_end = z_begin + ndvec.size;
+  auto result_begin = zip_iterator(result);
+  thrust::gather(rmm::exec_policy(), indices.begin(), indices.end(), z_begin,
+                 result_begin);
 }
 
 template <int N>
@@ -139,13 +159,14 @@ void unique_ndvector(NDVector<N> &ndvec)
 
 // sort a ndvector indices based on the values of a column
 template <int N>
-void sort_ndvector_indices(NDVector<N> &ndvec, int col)
+void *sort_ndvector_indices(NDVector<N> &ndvec, int col)
 {
   auto z_begin = zip_iterator(ndvec);
   auto z_end = z_begin + ndvec.size;
   init_ndvector_indices(ndvec);
   thrust::sort_by_key(rmm::exec_policy(), ndvec.vecs[col].begin(),
                       ndvec.vecs[col].end(), ndvec.indices.begin());
+  return &ndvec.indices;
 }
 
 template <int N>
@@ -187,6 +208,15 @@ void search_vector(rmm::device_vector<int> &vec,
   {                                                    \
     auto vec = new NDVector<DIM>(size);                \
     return vec;                                        \
+  }
+
+#define DECLARE_CUTHC_GATHER_NDVECTOR(DIM)                                    \
+  void cuthc_gather_ndvector_##DIM##N(void *ptr, void *indices, void *result) \
+  {                                                                           \
+    auto vec = static_cast<NDVector<DIM> *>(ptr);                             \
+    auto indices_vec = static_cast<rmm::device_vector<int> *>(indices);       \
+    auto result_vec = static_cast<NDVector<DIM> *>(result);                   \
+    gather_ndvector(*vec, *indices_vec, *result_vec);                          \
   }
 
 #define DECLARE_CUTHC_FREE_NDVECTOR(DIM)          \
@@ -256,20 +286,34 @@ void search_vector(rmm::device_vector<int> &vec,
     remove_ndvector_by_stencil(*vec, *stencil_vec);                      \
   }
 
-#define DECLARE_MERGE_NDVECTOR(N)                                       \
-  void cuthc_merge_ndvector_##N(void *ptr, void *ptr2, void *result)    \
-  {                                                                     \
-    auto vec = static_cast<NDVector<N> *>(ptr);                         \
-    auto vec2 = static_cast<NDVector<N> *>(ptr2);                       \
-    auto result_vec = static_cast<NDVector<N> *>(result);               \
-    merge_ndvector(*vec, *vec2, *result_vec);                          \
+#define DECLARE_MERGE_NDVECTOR(N)                                    \
+  void cuthc_merge_ndvector_##N(void *ptr, void *ptr2, void *result) \
+  {                                                                  \
+    auto vec = static_cast<NDVector<N> *>(ptr);                      \
+    auto vec2 = static_cast<NDVector<N> *>(ptr2);                    \
+    auto result_vec = static_cast<NDVector<N> *>(result);            \
+    merge_ndvector(*vec, *vec2, *result_vec);                        \
   }
 
-#define DECLARE_CLEAR_NDVECTOR(N)        \
-  void cuthc_clear_ndvector_##N(void *ptr) \
-  {                                       \
+#define DECLARE_CLEAR_NDVECTOR(N)               \
+  void cuthc_clear_ndvector_##N(void *ptr)      \
+  {                                             \
     auto vec = static_cast<NDVector<N> *>(ptr); \
-    clear_ndvector(*vec);                  \
+    clear_ndvector(*vec);                       \
+  }
+
+#define DECLARE_INIT_NDVECTOR_INDICES(N)           \
+  void *cuthc_init_ndvector_indices_##N(void *ptr) \
+  {                                                \
+    auto vec = static_cast<NDVector<N> *>(ptr);    \
+    return init_ndvector_indices(*vec);            \
+  }
+
+#define DECLARE_SORT_NDVECTOR_INDICES(N)                   \
+  void cuthc_sort_ndvector_indices_##N(void *ptr, int col) \
+  {                                                        \
+    auto vec = static_cast<NDVector<N> *>(ptr);            \
+    sort_ndvector_indices(*vec, col);                      \
   }
 
 #define CUTHC_MK_NDVECTOR(DIM)        \
@@ -280,11 +324,14 @@ void search_vector(rmm::device_vector<int> &vec,
   DECLARE_CUTHC_SIZE_NDVECTOR(DIM)    \
   DECLARE_CUTHC_SORT_NDVECTOR(DIM)    \
   DECLARE_CUTHC_SEARCH_NDVECTOR(DIM)  \
-  DECLARE_CUTHC_UNIQUE_NDVECTOR(DIM)  \                    
-  DECLARE_REMOVE_NDVECTOR(DIM)       \
-  DECLARE_MERGE_NDVECTOR(DIM)        \
-  DECLARE_CLEAR_NDVECTOR(DIM)
-  
+  DECLARE_CUTHC_UNIQUE_NDVECTOR(DIM)  \
+  DECLARE_CUTHC_GATHER_NDVECTOR(DIM)  \
+  DECLARE_REMOVE_NDVECTOR(DIM)        \
+  DECLARE_MERGE_NDVECTOR(DIM)         \
+  DECLARE_CLEAR_NDVECTOR(DIM)         \
+  DECLARE_INIT_NDVECTOR_INDICES(DIM)  \
+  DECLARE_SORT_NDVECTOR_INDICES(DIM)
+
 CUTHC_MK_NDVECTOR(1)
 CUTHC_MK_NDVECTOR(2)
 CUTHC_MK_NDVECTOR(3)

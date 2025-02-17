@@ -167,6 +167,43 @@ impl Drop for DeviceVec {
     }
 }
 
+pub struct DeviceVecRef {
+    raw_vec_ptr: *mut std::ffi::c_void,
+}
+
+impl DeviceVecRef {
+
+    pub fn resize(&mut self, size: usize) {
+        unsafe {
+            cuthc_resize_int_device_vec(self.raw_vec_ptr, size);
+        }
+    }
+
+    pub fn size(&self) -> usize {
+        unsafe {
+            cuthc_size_int_device_vec(self.raw_vec_ptr)
+        }
+    }
+
+    pub fn raw_data(&self) -> *mut i32 {
+        unsafe {
+            cuthc_raw_ptr_int_device_vec(self.raw_vec_ptr)
+        }
+    }
+
+    pub fn set(&mut self, pos: usize, value: i32) {
+        unsafe {
+            cuthc_set_int_device_vec(self.raw_vec_ptr, pos, value);
+        }
+    }
+
+    pub fn get(&self, pos: usize) -> i32 {
+        unsafe {
+            cuthc_get_int_device_vec(self.raw_vec_ptr, pos)
+        }
+    }
+}
+
 
 pub struct DeviceBitMap {
     raw_vec_ptr: *mut std::ffi::c_void,

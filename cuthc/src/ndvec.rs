@@ -1,4 +1,4 @@
-use macro_util::{gen_cuthc_nvec_call_n, gen_cuthc_nvec_n};
+use cuthc_macro::{gen_cuthc_nvec_call_n, gen_cuthc_nvec_n};
 
 #[link(name = "cuthc", kind = "dylib")]
 extern "C" {
@@ -6,7 +6,7 @@ extern "C" {
         fn cuthc_mk_ndvector(arity: i32, size: usize) -> *mut std::ffi::c_void;
         fn cuthc_free_ndvector(ptr: *mut std::ffi::c_void);
         fn cuthc_resize_ndvector(ptr: *mut std::ffi::c_void, size: usize);
-        fn cuthc_raw_ptr_ndvector(ptr: *mut std::ffi::c_void, col: *const usize) -> *mut i32;
+        fn cuthc_raw_ptr_ndvector(ptr: *mut std::ffi::c_void, col: usize) -> *mut i32;
         fn cuthc_size_ndvector(ptr: *mut std::ffi::c_void) -> usize;
         fn cuthc_sort_ndvector(ptr: *mut std::ffi::c_void);
         fn cuthc_search_ndvector(
@@ -21,6 +21,13 @@ extern "C" {
             input: *mut std::ffi::c_void,
             result: *mut std::ffi::c_void,
         );
+        fn cuthc_init_ndvector_indices(ptr: *mut std::ffi::c_void) -> *mut std::ffi::c_void;
+        fn cuthc_sort_ndvector_indices(ptr: *mut std::ffi::c_void) -> *mut std::ffi::c_void;
+        fn cuthc_gather_ndvector(
+            ptr: *mut std::ffi::c_void,
+            indices: *mut std::ffi::c_void,
+            result: *mut std::ffi::c_void,
+        );
     }
 }
 
@@ -29,6 +36,7 @@ pub struct NdVector<const DIM: usize> {
     raw_vec_ptr: *mut std::ffi::c_void,
     arity: usize,
     size: usize,
+    indices: *mut std::ffi::c_void,
 }
 
 impl<const DIM: usize> NdVector<DIM> {
@@ -39,6 +47,7 @@ impl<const DIM: usize> NdVector<DIM> {
                 raw_vec_ptr,
                 arity,
                 size,
+                indices: std::ptr::null_mut(),
             }
         }
     }
@@ -57,9 +66,9 @@ impl<const DIM: usize> NdVector<DIM> {
         }
     }
 
-    pub fn raw_data(&self, col: &[usize]) -> *mut i32 {
+    pub fn raw_data(&self, col: usize) -> *mut i32 {
         gen_cuthc_nvec_call_n!{8=>
-            cuthc_raw_ptr_ndvector(self.raw_vec_ptr, col.as_ptr())
+            cuthc_raw_ptr_ndvector(self.raw_vec_ptr, col)
         }
     }
 
@@ -89,6 +98,30 @@ impl<const DIM: usize> NdVector<DIM> {
 
     pub fn clear(&mut self) {
         self.resize(0);
+    }
+
+    pub fn indexed(&self) -> bool {
+        !self.indices.is_null()
+    }
+
+    pub fn init_indices(&mut self) {
+        gen_cuthc_nvec_call_n! {8=>
+            let ind_ptr = cuthc_init_ndvector_indices(self.raw_vec_ptr);
+            self.indices = ind_ptr;
+        }
+    }
+
+    pub fn sort_indices(&mut self) {
+        gen_cuthc_nvec_call_n! {8=>
+            let ind_ptr = cuthc_sort_ndvector_indices(self.indices);
+            self.indices = ind_ptr;
+        }
+    }
+
+    pub fn gather(&mut self, indices: *mut std::ffi::c_void, result: &mut NdVector<DIM>) {
+        gen_cuthc_nvec_call_n! {8=>
+            cuthc_gather_ndvector(self.raw_vec_ptr, indices, result.raw_vec_ptr)
+        }
     }
 
 }
