@@ -149,7 +149,7 @@ add_library(cuthc SHARED ${cuthc_src_files} ${cuthc_include_files})
 target_include_directories(cuthc PUBLIC ${cuthc_include})
 target_link_libraries(cuthc cuco::cuco rmm::rmm)
 # turn on pic and -extended-lambda
-set_target_properties(cuthc PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
+set_target_properties(cuthc PROPERTIES CUDA_SEPARABLE_COMPILATION ON CUDA_ARCHITECTURES "80")
 set_target_properties(cuthc PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
 target_compile_options(cuthc PUBLIC $<$<COMPILE_LANGUAGE:CUDA>:
@@ -160,6 +160,7 @@ target_compile_options(cuthc PUBLIC $<$<COMPILE_LANGUAGE:CUDA>:
 target_compile_features(cuthc PUBLIC cxx_std_20)
 
 add_executable(cuthc_test ${cuthc_test}/test.cu)
+target_include_directories(cuthc PUBLIC ${cuthc_include})
 target_link_libraries(cuthc_test cuco::cuco rmm::rmm)
 set_target_properties(cuthc_test PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
 target_compile_options(cuthc_test PUBLIC $<$<COMPILE_LANGUAGE:CUDA>:

@@ -1,0 +1,18 @@
+{
+    "configurations": [
+        {
+            "name": "Linux",
+            "includePath": [
+                "${workspaceFolder}/**"
+            ],
+            "defines": [],
+            "compilerPath": "/usr/bin/clang",
+            "cStandard": "c17",
+            "cppStandard": "c++14",
+            "compileCommands": [
+                "${workspaceFolder}/target/debug/build/cuthc-f604f8f7f2ae5072/out/build/compile_commands.json"
+            ]
+        }
+    ],
+    "version": 4
+}

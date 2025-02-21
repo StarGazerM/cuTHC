@@ -10,4 +10,4 @@ cmake = "0.1.45"
 [dependencies]
 cudarc = { version = "0.13.4", features = ["cuda-12040"]}
 cuthc_macro = { path = "../cuthc_macro" }
-
+cmake = "0.1.45"

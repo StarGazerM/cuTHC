@@ -15,141 +15,157 @@
 #include <thrust/sort.h>
 #include <thrust/transform.h>
 
+#include "../include/ndvector.hpp"
+#include "../include/read.cuh"
+
 #include <chrono>
-// #include "cuthc.h"
+#include "../include/cuthc.h"
 
 // default size of random vectors as 1GB
 #define DEFAULT_SIZE 512 * 1024 * 1024
 #define DEFAULT_SEARCH_SIZE 1024 * 1024
-#define ARITY 4
-
-// a N-dimensional vector, each dimension is a device vector
-template <int N> class NDVector {
-
-public:
-  size_t size;
-  std::array<rmm::device_vector<int>, N> vecs;
-
-  NDVector(size_t size) : size(size) {
-    for (int i = 0; i < N; i++) {
-      vecs[i].resize(size);
-    }
-  }
-
-  void host_copy_column(int col, thrust::host_vector<int> &host_vec) {
-    cudaMemcpy(host_vec.data(), vecs[col].data().get(), size * sizeof(int),
-               cudaMemcpyDeviceToHost);
-  }
-
-  void print_row_before(int row_num) {
-    for (int i = 0; i < row_num; i++) {
-      for (int j = 0; j < N; j++) {
-        std::cout << vecs[j][i] << " ";
-      }
-      std::cout << std::endl;
-    }
-  }
-};
+#define ARITY 3
 
 // generate a random in32_t device vector
-void random_int_device_vector(size_t size, rmm::device_vector<int> &vec) {
+void random_int_device_vector(size_t size, rmm::device_vector<int> &vec)
+{
   vec.resize(size);
   thrust::host_vector<int> host_vec(size);
-  for (size_t i = 0; i < size; i++) {
+  for (size_t i = 0; i < size; i++)
+  {
     host_vec[i] = rand() % DEFAULT_SEARCH_SIZE;
   }
   cudaMemcpy(vec.data().get(), host_vec.data(), size * sizeof(int),
              cudaMemcpyHostToDevice);
 }
 
-void sort_vector(rmm::device_vector<int> &vec) {
-  thrust::sort(vec.begin(), vec.end());
+void random_int_device_vector(size_t size, rmm::device_vector<int> &vec, int val)
+{
+  vec.resize(size);
+  thrust::host_vector<int> host_vec(size);
+  for (size_t i = 0; i < size; i++)
+  {
+    host_vec[i] = rand() % val;
+  }
+  cudaMemcpy(vec.data().get(), host_vec.data(), size * sizeof(int),
+             cudaMemcpyHostToDevice);
 }
 
-
-#include <utility> // for index_sequence
-
-template <int N> auto zip_iterator(NDVector<N> &ndvec) {
-  return thrust::make_zip_iterator(
-      [&]<size_t... Is>(std::index_sequence<Is...>) {
-        return thrust::make_tuple(ndvec.vecs[Is].begin()...);
-      }(std::make_index_sequence<N>{}));
+void test_binary_find(NDVector<ARITY> &vec, NDVector<ARITY> &search_vec)
+{
+  rmm::device_vector<bool> result;
+  result.resize(search_vec.get_size());
+  auto total_time = 0;
+  for (int i = 0; i < 10; i++)
+  {
+    auto start = std::chrono::high_resolution_clock::now();
+    search_ndvector(vec, search_vec, result);
+    cudaDeviceSynchronize();
+    auto stop = std::chrono::high_resolution_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
+    thrust::fill(result.begin(), result.end(), false);
+    total_time += duration.count();
+    // std::cout << "Binary search took " << duration.count() << " milliseconds" << std::endl;
+  }
+  std::cout << "Average binary search time: " << total_time / 10 << " milliseconds" << std::endl;
 }
 
-// sort a N-dimensional vector based lexicographically
-template <int N> void sort_ndvector(NDVector<N> &ndvec) {
-  // rmm::device_vector<int> indices(ndvec.size);
-  // rmm::device_vector<int> temp(ndvec.size);
-  // // initialize indices
-  // thrust::sequence(thrust::device, indices.begin(), indices.end());
-  // for (int i = N - 1; i >= 0; i--) {
-  //   // sort the i-th dimension
-  //   thrust::gather(thrust::device, ndvec.vecs[i].begin(), ndvec.vecs[i].end(),
-  //                  indices.begin(), temp.begin());
-  //   thrust::sort_by_key(thrust::device, temp.begin(), temp.end(),
-  //                       indices.begin());
-  // }
-  // for (int i = 0; i < N; i++) {
-  //   // sort the i-th dimension
-  //   thrust::gather(thrust::device, indices.begin(), indices.end(),
-  //                  ndvec.vecs[i].begin(), temp.begin());
-  //   // swap the sorted vector back to the original vector
-  //   ndvec.vecs[i].swap(temp);
-  // }
-
-  auto z_begin = zip_iterator(ndvec);
-  auto z_end = z_begin + ndvec.size;
-  thrust::sort(rmm::exec_policy(), z_begin, z_end);
+void test_find_kernal_print() {
+  NDVector<2> ndvec(20);
+  NDVector<2> search_ndvec(10);
+  for (int i = 0; i < 2; i++)
+  {
+    random_int_device_vector(20, ndvec.vecs[i], 10);
+  }
+  for (int i = 0; i < 2; i++)
+  {
+    random_int_device_vector(10, search_ndvec.vecs[i], 10);
+  }
+  
+  sort_ndvector(ndvec);
+  sort_ndvector(search_ndvec);
+  rmm::device_vector<bool> result;
+  result.resize(search_ndvec.get_size());
+  search_ndvector_kernel_wrapper(ndvec, search_ndvec, result);
+  cudaDeviceSynchronize();
+  // print
+  ndvec.print_row_before(20);
+  
+  std::cout << "wwwwwwwwww" << std::endl;
+  search_ndvec.print_row_before(10);
+  std::cout << "wwwwwwwwww" << std::endl;
+  for (int i = 0; i < search_ndvec.get_size(); i++)
+  {
+    std::cout << result[i] << " ";
+  }
+  std::cout << std::endl;
 }
 
-
-template <int N>
-void search_ndvector(NDVector<N> &ndvec, NDVector<N> &search_ndvec,
-                     rmm::device_vector<bool> &result) {
-  auto z_begin = zip_iterator(ndvec);
-  auto z_end = z_begin + ndvec.size;
-  auto search_begin = zip_iterator(search_ndvec);
-  auto search_end = search_begin + search_ndvec.size;
-
-  thrust::binary_search(rmm::exec_policy(), z_begin, z_end, search_begin,
-                        search_end, result.begin());
+void test_binary_find_kernal(NDVector<ARITY> &vec, NDVector<ARITY> &search_vec)
+{
+  rmm::device_vector<bool> result;
+  result.resize(search_vec.get_size());
+  thrust::fill(result.begin(), result.end(), false);
+  auto total_time = 0;
+  for (int i = 0; i < 10; i++)
+  {
+    auto start = std::chrono::high_resolution_clock::now();
+    cudaDeviceSynchronize();
+    search_ndvector_kernel_wrapper(vec, search_vec, result);
+    // synchronize
+    cudaDeviceSynchronize();
+    auto stop = std::chrono::high_resolution_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
+    // std::cout << "Binary search took " << duration.count() << " milliseconds" << std::endl;
+    total_time += duration.count();
+  }
+  std::cout << "Average binary search time: " << total_time / 10 << " milliseconds" << std::endl;
 }
 
-// search for a value in a sorted vector
-void search_vector(rmm::device_vector<int> &vec,
-                   rmm::device_vector<int> &search_vec,
-                   rmm::device_vector<bool> &result) {
-  thrust::binary_search(thrust::device, vec.begin(), vec.end(),
-                        search_vec.begin(), search_vec.end(), result.begin());
+void test_join_ndev() {
+  char *filename = "data.txt";
+  NDVector<2> edge;
+  read_data<2>(filename, edge);
+
+  NDVector<2> path;
+
+  copy_ndvector(edge, path);
+  path.lexical_reorder({1, 0});
+  IndexedNDVector<2, 1> indexed_edge(edge, {0, 1});
+
+  NDVector<2> path_new;
+  compute_equi_join<2,2,1,2>(path, indexed_edge, path_new);
+  
+  // print join size
+  // 
 }
 
-int main() {
-
+int main()
+{
   NDVector<ARITY> ndvec(DEFAULT_SIZE);
   NDVector<ARITY> search_ndvec(DEFAULT_SEARCH_SIZE);
-  for (int i = 0; i < ARITY; i++) {
+  // generate random vectors
+  for (int i = 0; i < ARITY; i++)
+  {
     random_int_device_vector(DEFAULT_SIZE, ndvec.vecs[i]);
   }
-  ndvec.print_row_before(100);
-  auto start = std::chrono::high_resolution_clock::now();
-  sort_ndvector(ndvec);
-  // ndvec.print_row_before(100);
-  auto end = std::chrono::high_resolution_clock::now();
-  auto duration =
-      std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
-  printf("sort time: %ld ms\n", duration.count());
-  for (int i = 0; i < ARITY; i++) {
+
+  for (int i = 0; i < ARITY; i++)
+  {
     random_int_device_vector(DEFAULT_SEARCH_SIZE, search_ndvec.vecs[i]);
   }
+  auto sort_time = 0;
+  auto before = std::chrono::high_resolution_clock::now();
+  sort_ndvector(ndvec);
   sort_ndvector(search_ndvec);
+  auto after = std::chrono::high_resolution_clock::now();
+  auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(after - before);
+  std::cout << "Sorting took " << duration.count() << " milliseconds" << std::endl;
 
-  rmm::device_vector<bool> result(DEFAULT_SEARCH_SIZE);
-  start = std::chrono::high_resolution_clock::now();
-  search_ndvector(ndvec, search_ndvec, result);
-  end = std::chrono::high_resolution_clock::now();
-  duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
-  printf("search time: %ld ms\n", duration.count());
-  // print first 100 rows
-  
+  test_binary_find(ndvec, search_ndvec);
+  test_binary_find_kernal(ndvec, search_ndvec);
+
+  // test_find_kernal_print();
+
   return 0;
 }

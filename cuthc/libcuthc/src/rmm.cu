@@ -118,3 +118,11 @@ void cuthc_set_bool_device_vec_all(void* ptr, bool value) {
     auto device_vec = static_cast<rmm::device_vector<bool>*>(ptr);
     thrust::fill(rmm::exec_policy(), device_vec->begin(), device_vec->end(), value);
 }
+
+int cuthc_num_sm() {
+    int device_id;
+    int num_sm;
+    cudaGetDevice(&device_id);
+    cudaDeviceGetAttribute(&num_sm, cudaDevAttrMultiProcessorCount, device_id);
+    return num_sm;
+}

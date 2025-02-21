@@ -48,6 +48,7 @@ extern "C" {
     void cuthc_set_bool_device_vec(void* ptr, size_t pos, bool value);
     bool cuthc_get_bool_device_vec(void* ptr, size_t pos);
     void cuthc_set_bool_device_vec_all(void* ptr, bool value);
+    int cuthc_num_sm();
 
     // ndarray api
     DECL_NDVECTOR(1)
